@@ -983,6 +983,7 @@ def calc_pnl(ovdf, ts0, lut=dt.datetime.now()):
         fut_fill_count = 0
         opt_fill_count = 0
         rpt_trd_str = "No Trades\n{}".format(error_msg)
+        trd_df = pd.DataFrame([[0,0,0,0,0,0,0,0]],index = ['Total'],columns = ['pnl', 'sprd_pnl', 'delta_pnl', 'roll_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl'])
     else:
         if futpnl:
             last_tm, rpt_trd, fut_fill_count, opt_fill_count, expiry_list = report_trd_fut_quote(fills,
@@ -997,8 +998,10 @@ def calc_pnl(ovdf, ts0, lut=dt.datetime.now()):
             if expiry_list is not None:
                 rpt_trd = rpt_trd.reindex(np.append(expiry_list, 'Total')).dropna()
         if not rpt_trd.empty:
+            trd_df = rpt_trd.copy()
             rpt_trd_str=rpt_trd.to_string(float_format='${:,.0f}'.format)
         else:
+            trd_df = pd.DataFrame([[0,0,0,0,0,0,0,0]],index = ['Total'],columns = ['pnl', 'sprd_pnl', 'delta_pnl', 'roll_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl'])
             rpt_trd_str = ""
 
     ######################################################################################################
@@ -1009,6 +1012,7 @@ def calc_pnl(ovdf, ts0, lut=dt.datetime.now()):
             if not showcursor or not sendemail:
                 os.system('setterm -cursor off')
             rpt_pos_str = "No Positions"
+            pos_df = pd.DataFrame([[0,0,0,0,0,0]],index = ['Total'],columns = ['pnl', 'delta_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl'])
 
         else:
             if futpnl:
@@ -1023,15 +1027,17 @@ def calc_pnl(ovdf, ts0, lut=dt.datetime.now()):
                     rpt_pos = rpt_pos.reindex(np.append(expiry_list, 'Total')).dropna()
             if not rpt_pos.empty:
                 rpt_pos_str=rpt_pos.to_string(float_format='${:,.0f}'.format)
+                pos_df = rpt_pos.copy()
             else:
                 rpt_pos_str = ""
-
-    instr_name = account.split('_')[1]
-    sso_df = pd.concat([pos_df.tail(1), trd_df.tail(1)],axis = 1)
-    sso_df['fut'] = fut_fill_count
-    sso_df['opt'] = opt_fill_count
-    sso_df['instr'] = instr_name
-    sso_df.to_csv(instr_name + '_pnl.csv')
+                pos_df = pd.DataFrame([[0,0,0,0,0,0]],index = ['Total'],columns = ['pnl', 'delta_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl'])
+    if product_csv:
+        instr_name = account.split('_')[1]
+        sso_df = pd.concat([pos_df.tail(1), trd_df.tail(1)],axis = 1)
+        sso_df['fut'] = fut_fill_count
+        sso_df['opt'] = opt_fill_count
+        sso_df['instr'] = instr_name
+        sso_df.to_csv(instr_name + '_pnl.csv')
 
     ######################################################################################################
     # OUTPUT
@@ -1083,6 +1089,7 @@ if __name__ == "__main__":
     parser.add_argument( "--simt1", action="store_true", help="simulate pnl on t1 session of specified date")
     parser.add_argument( "--simfilepath", type=str, help="ovd file path for pnl simulation")
     parser.add_argument( "--showcursor", action="store_true", help="show cursor (disabled by default)")
+    parser.add_argument( "--csv", action='store_true', help="product csv file")
     args = parser.parse_args()
 
     ######################################################################################################
@@ -1118,6 +1125,7 @@ if __name__ == "__main__":
     sendemail = False
     futpnl = False
     publish_zmq = False
+    product_csv = False
 
     currency = 'USD'
     zmq_server_lookup = ''
@@ -1200,6 +1208,9 @@ if __name__ == "__main__":
 
     if args.publish:
         publish_zmq = True
+
+    if args.csv:
+        product_csv = True
 
     if args.filterlabels:
         filters = args.filterlabels.split(',')
@@ -1321,7 +1332,7 @@ if __name__ == "__main__":
     # print("start_time_t1_dt: {} start_time: {} end_time_dt: {} end_dt: {}".format(start_time_t1, start_dt, end_time_t1, end_dt))
     # initialization
     output = ''
-    while True:
+    while dt.datetime.now().time() > start_time and dt.datetime.now().time() < end_time:
         msg = subsok.recv()
         # get the latest message in case we are queued up
         try:
@@ -1345,3 +1356,4 @@ if __name__ == "__main__":
             ts0=time.time()
             msgtype, ovdf = tetrion.options.parse_zmq_msg(msg)
             output = calc_pnl(ovdf, ts0, lut)
+    print('Timeover and out.')
