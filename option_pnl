@@ -543,7 +543,8 @@ def report_pos(pos, ovdf, ovd0, conn, start_tm=dt.time(8,45), end_tm=dt.time(13,
         df = pd.pivot_table(df, index='exp', values=pnlcols, aggfunc=np.sum)
         sum_row = {col: df[col].sum() for col in df}
         sum_df = pd.DataFrame(sum_row, index=["Total"])
-        df = df.append(sum_df)
+        # df = df.append(sum_df)
+        df = pd.concat([df, sum_df])
         df = df.reindex(columns=pnlcols)
         df.index.name=None
         df = df[['pnl', 'delta_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl']] # reorder columns
