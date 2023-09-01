@@ -433,7 +433,8 @@ def report_trd(fills, ovdf,
         df = pd.pivot_table(df, index='exp', values=values, aggfunc=sum)
         sum_row = {col: df[col].sum() for col in df}
         sum_df = pd.DataFrame(sum_row, index=["Total"])
-        df = df.append(sum_df)
+        # df = df.append(sum_df)
+        df = pd.concat([df, sum_df])
         df = df.reindex(columns=values)
         df.index.name=None
         df = df[['pnl', 'sprd_pnl', 'delta_pnl', 'roll_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 'res_pnl']] # reorder columns
